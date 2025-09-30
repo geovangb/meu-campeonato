@@ -47,10 +47,6 @@
 <body>
 <div class="sidebar">
     <h4 class="text-center py-3">Admin</h4>
-    <a href="{{ route('products.index') }}">📦 Produtos</a>
-    <a href="{{ route('products.create') }}">➕ Novo Produto</a>
-    <a href="{{ route('orders.index') }}"><i class="bi bi-clipboard-check"></i> Pedidos</a>
-    <a href="{{ route('coupons.index') }}"><i class="bi bi-ticket-perforated"></i> Cupons</a>
 </div>
 
 <div class="main-content">
