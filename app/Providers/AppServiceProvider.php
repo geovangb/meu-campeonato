@@ -16,9 +16,7 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register()
     {
-        $this->app->bind(CouponRepository::class);
-        $this->app->bind(OrderRepository::class);
-        $this->app->bind(ProductRepository::class);
+
     }
 
     /**

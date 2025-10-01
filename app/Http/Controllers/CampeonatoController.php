@@ -19,6 +19,7 @@ class CampeonatoController
     public function index()
     {
         $campeonatos = Campeonato::latest()->paginate(10);
+
         return view('campeonatos.index', compact('campeonatos'));
     }
 
@@ -68,8 +69,51 @@ class CampeonatoController
         return redirect()->route('campeonatos.index')->with('success', 'Campeonato excluído com sucesso!');
     }
 
-    public function starter(Campeonato $campeonato)
+    public function iniciar(Campeonato $campeonato)
     {
+        if ($campeonato->jogos()->count() === 0) {
 
+            app(JogoService::class)->gerarJogosQuartas($campeonato);
+        }
+
+        $primeiroJogo = $campeonato->jogos()->first();
+
+        return redirect()->route('jogos.edit', [$campeonato->id, $primeiroJogo->id]);
+    }
+
+    public function jogos(Campeonato $campeonato)
+    {
+        $jogos = $campeonato->jogos()->with(['timeCasa', 'timeFora'])->get();
+
+        $times = $campeonato->times()->get()->map(function($time) use ($campeonato) {
+            $pontos = 0;
+            $golsPro = 0;
+            $golsContra = 0;
+            $cartoes = 0;
+
+            foreach($time->jogos() as $jogo) {
+                if($jogo->time_casa_id == $time->id) {
+                    $golsPro += $jogo->gols_casa ?? 0;
+                    $golsContra += $jogo->gols_fora ?? 0;
+                } else {
+                    $golsPro += $jogo->gols_fora ?? 0;
+                    $golsContra += $jogo->gols_casa ?? 0;
+                }
+                // exemplo de cartão
+                $cartoes += $jogo->sumula['cartoes'][$time->id] ?? 0;
+
+                $pontos += ($jogo->gols_casa ?? 0) - ($jogo->gols_fora ?? 0);
+            }
+
+            $time->pontos = $pontos;
+            $time->gols_pro = $golsPro;
+            $time->gols_contra = $golsContra;
+            $time->cartoes = $cartoes;
+            return $time;
+        })->sortByDesc('pontos');
+
+        $classificados = $times->take(4)->pluck('id')->toArray();
+
+        return view('campeonatos.jogos', compact('campeonato', 'jogos', 'times', 'classificados'));
     }
 }

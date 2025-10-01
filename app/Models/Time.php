@@ -33,4 +33,24 @@ class Time extends Model
         return $this->hasMany(Jogador::class);
     }
 
+    public function campeonatoTimes()
+    {
+        return $this->hasMany(CampeonatoTime::class);
+    }
+
+    public function campeonatos()
+    {
+        return $this->belongsToMany(Campeonato::class, 'campeonato_times')
+            ->withPivot([
+                'vitoria',
+                'derrota',
+                'empate',
+                'gols_feitos',
+                'gols_sofridos',
+                'cartao_amarelo',
+                'cartao_vermelho',
+                'jogos',
+            ])
+            ->withTimestamps();
+    }
 }

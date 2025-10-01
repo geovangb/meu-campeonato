@@ -29,6 +29,9 @@ class Campeonato extends Model
         'vice',
         'terceiro_lugar',
         'tipo_campeonato',
+        'penaltis',
+        'prorrogacao',
+        'criterio_desempate',
     ];
 
     protected $casts = [
@@ -48,5 +51,31 @@ class Campeonato extends Model
     {
         $this->attributes['tipo_campeonato'] = $value;
         $this->attributes['qtd_times'] = self::$mapaTimes[$value] ?? 0;
+    }
+
+    public function campeonatoTimes()
+    {
+        return $this->hasMany(CampeonatoTime::class);
+    }
+
+    public function times()
+    {
+        return $this->belongsToMany(Time::class, 'campeonato_times')
+            ->withPivot([
+                'vitoria',
+                'derrota',
+                'empate',
+                'gols_feitos',
+                'gols_sofridos',
+                'cartao_amarelo',
+                'cartao_vermelho',
+                'jogos',
+            ])
+            ->withTimestamps();
+    }
+
+    public function jogos()
+    {
+        return $this->hasMany(Jogo::class, 'campeonato_id');
     }
 }
