@@ -67,32 +67,75 @@ class CampeonatoService
         $jogos = $campeonato->jogos()->with(['timeCasa','timeFora'])->get();
 
         return $campeonato->times()->get()->map(function($time) use ($jogos) {
-            $golsPro = $golsContra = $pontos = $cartoes = 0;
+            $golsPro = $golsContra = $pontos = $cartoes = $jogados = 0;
 
             $jogosTime = $jogos->filter(fn($j) => $j->time_casa_id == $time->id || $j->time_fora_id == $time->id);
 
             foreach($jogosTime as $j) {
+                $jogados++;
+
                 if ($j->time_casa_id == $time->id) {
-                    $golsPro += $j->gols_casa ?? 0;
-                    $golsContra += $j->gols_fora ?? 0;
+                    $golsPro     += $j->gols_casa ?? 0;
+                    $golsContra  += $j->gols_fora ?? 0;
+
+                    // pontos
+                    if (!is_null($j->gols_casa) && !is_null($j->gols_fora)) {
+                        if ($j->gols_casa > $j->gols_fora) $pontos += 3;
+                        elseif ($j->gols_casa == $j->gols_fora) $pontos += 1;
+                    }
+
                 } else {
-                    $golsPro += $j->gols_fora ?? 0;
-                    $golsContra += $j->gols_casa ?? 0;
+                    $golsPro     += $j->gols_fora ?? 0;
+                    $golsContra  += $j->gols_casa ?? 0;
+
+                    if (!is_null($j->gols_casa) && !is_null($j->gols_fora)) {
+                        if ($j->gols_fora > $j->gols_casa) $pontos += 3;
+                        elseif ($j->gols_fora == $j->gols_casa) $pontos += 1;
+                    }
                 }
 
                 $cartoes += $j->sumula['cartoes'][$time->id] ?? 0;
             }
 
-            $pontos = $golsPro - $golsContra;
-
             return [
-                'time' => $time,
-                'pontos' => $pontos,
-                'gols_pro' => $golsPro,
+                'time'        => $time,
+                'pontos'      => $pontos,
+                'jogados'     => $jogados,
+                'gols_pro'    => $golsPro,
                 'gols_contra' => $golsContra,
-                'cartoes' => $cartoes,
+                'saldo'       => $golsPro - $golsContra,
+                'cartoes'     => $cartoes,
             ];
-        })->sortByDesc('pontos')->values();
+        })
+            ->sortByDesc('pontos')
+            ->sortByDesc('saldo')
+            ->sortByDesc('gols_pro')
+            ->values();
+    }
+
+    public function criarProximaFase(Campeonato $campeonato): void
+    {
+        $classificacao = $this->calcularClassificacao($campeonato);
+        $top4 = $classificacao->take(4)->pluck('time');
+
+        if ($top4->count() < 4) {
+            throw new \Exception('Não há times suficientes para semifinais.');
+        }
+
+        // cria semifinal
+        $partidas = [
+            [$top4[0]->id, $top4[3]->id], // 1º x 4º
+            [$top4[1]->id, $top4[2]->id], // 2º x 3º
+        ];
+
+        foreach ($partidas as [$casa, $fora]) {
+            $campeonato->jogos()->create([
+                'time_casa_id' => $casa,
+                'time_fora_id' => $fora,
+                'fase' => 'semifinal',
+                'data_partida' => now()->addDays(2), // pode ser parametrizado
+            ]);
+        }
     }
 
     /**

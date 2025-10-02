@@ -4,6 +4,15 @@
     <div class="container">
         <h2>Visão Geral - {{ $campeonato->nome }}</h2>
 
+        {{-- Botão Próxima fase --}}
+        <div class="mb-3">
+            <a href="{{ route('campeonatos.proxima-fase', $campeonato->id) }}"
+               class="btn btn-success"
+               onclick="return confirm('Gerar próxima fase automaticamente?')">
+                Próxima fase
+            </a>
+        </div>
+
         {{-- Tabela do Pódio --}}
         <h4>Pódio</h4>
         <table class="table table-bordered text-center">
@@ -58,8 +67,8 @@
             </tbody>
         </table>
 
-        {{-- Todos os Jogos --}}
-        <h4>Jogos</h4>
+        {{-- Fase de Grupos (todos os jogos sem fase definida) --}}
+        <h4>Jogos - Fase de Grupos</h4>
         <table class="table table-striped">
             <thead>
             <tr>
@@ -70,7 +79,7 @@
             </tr>
             </thead>
             <tbody>
-            @foreach($jogos as $j)
+            @foreach($jogos->whereNull('fase') as $j)
                 <tr>
                     <td>{{ $loop->iteration }}</td>
                     <td>{{ $j->timeCasa->nome }} x {{ $j->timeFora->nome }}</td>
@@ -95,7 +104,7 @@
             </tr>
             </thead>
             <tbody>
-            @foreach($jogos->where('fase','semifinal') as $j)
+            @forelse($jogos->where('fase','semifinal') as $j)
                 <tr>
                     <td>{{ $loop->iteration }}</td>
                     <td>{{ $j->timeCasa->nome }} x {{ $j->timeFora->nome }}</td>
@@ -104,7 +113,11 @@
                         <a href="{{ route('jogos.edit', [$campeonato->id, $j->id]) }}" class="btn btn-sm btn-primary">Editar</a>
                     </td>
                 </tr>
-            @endforeach
+            @empty
+                <tr>
+                    <td colspan="4" class="text-center">Sem semifinais geradas</td>
+                </tr>
+            @endforelse
             </tbody>
         </table>
 
@@ -120,7 +133,7 @@
             </tr>
             </thead>
             <tbody>
-            @foreach($jogos->where('fase','final') as $j)
+            @forelse($jogos->where('fase','final') as $j)
                 <tr>
                     <td>{{ $loop->iteration }}</td>
                     <td>{{ $j->timeCasa->nome }} x {{ $j->timeFora->nome }}</td>
@@ -129,7 +142,11 @@
                         <a href="{{ route('jogos.edit', [$campeonato->id, $j->id]) }}" class="btn btn-sm btn-primary">Editar</a>
                     </td>
                 </tr>
-            @endforeach
+            @empty
+                <tr>
+                    <td colspan="4" class="text-center">Final ainda não definida</td>
+                </tr>
+            @endforelse
             </tbody>
         </table>
 

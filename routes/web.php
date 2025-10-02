@@ -42,5 +42,8 @@ Route::prefix('campeonatos/{campeonato}')->group(function () {
     Route::get('jogos/{jogo}/edit', [JogoController::class, 'edit'])->name('jogos.edit');
     Route::put('jogos/{jogo}/save', [JogoController::class, 'update'])->name('jogos.update');
     Route::get('jogos', [CampeonatoController::class, 'jogosVisaoGeral'])->name('campeonatos.jogos.visao_geral');
-
+    Route::get('proxima-fase', [CampeonatoController::class, 'proximaFase'])
+        ->name('campeonatos.proxima-fase');
 });
+
+

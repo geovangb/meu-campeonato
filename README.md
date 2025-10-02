@@ -1,6 +1,6 @@
 # MeuCampeonato 1.0
 
-Sistem desenvolvido para gerenciar os campeonatos
+Sistema desenvolvido para gerenciar os campeonatos
 
 ---
 
@@ -33,6 +33,12 @@ php artisan tinker
     'email' => 'admin@campeonato.test',
     'password' => bcrypt('senha_segura')
 ]);
+```
+### ou Logar com 
+
+```
+gb@admin.com
+admin123
 ```
 
 ---

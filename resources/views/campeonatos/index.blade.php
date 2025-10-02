@@ -35,6 +35,7 @@
                             <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('Tem certeza?')">Excluir</button>
                         </form>
                         <a href="{{ route('campeonatos.starter', $c) }}" class="btn btn-sm btn-success">Iniciar</a>
+                        <a href="{{ route('campeonatos.jogos.visao_geral', $c) }}" class="btn btn-sm btn-primary">Ver</a>
                     </td>
                 </tr>
             @endforeach

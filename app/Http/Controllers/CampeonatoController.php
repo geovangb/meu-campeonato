@@ -144,4 +144,14 @@ class CampeonatoController extends Controller
 
         return view('campeonatos.jogos_geral', compact('campeonato','jogos','classificacao','top4'));
     }
+
+    public function proximaFase(Campeonato $campeonato)
+    {
+        try {
+            $this->service->criarProximaFase($campeonato);
+            return redirect()->back()->with('success', 'Semifinais criadas com sucesso!');
+        } catch (\Exception $e) {
+            return redirect()->back()->with('error', $e->getMessage());
+        }
+    }
 }
