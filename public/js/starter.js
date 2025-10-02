@@ -170,8 +170,7 @@ $(document).ready(function() {
             }).then(r => r.json())
                 .then(res => {
                     if (res.success) {
-                        const primeiroJogoId = items[0].id;
-                        window.location.href = `/campeonatos/${CAMPEONATO_ID}/jogos/${primeiroJogoId}/edit`;
+                        window.location.href = `/campeonatos/${CAMPEONATO_ID}/jogos`;
                     } else {
                         alert('Erro ao salvar datas.');
                     }

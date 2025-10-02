@@ -92,7 +92,7 @@ document.addEventListener('DOMContentLoaded', function() {
             reservas_time_2: foraReserv
         };
 
-        fetch(`/campeonatos/${CAMPEONATO_ID}/jogos/${JOGO_ID}`, {
+        fetch('/campeonatos/' + CAMPEONATO_ID + '/jogos/' + JOGO_ID + '/save', {
             method: 'PUT',
             headers: {
                 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
@@ -100,6 +100,7 @@ document.addEventListener('DOMContentLoaded', function() {
             },
             body: JSON.stringify(payload)
         })
+
             .then(r => r.json())
             .then(res => {
                 if(res.success) {

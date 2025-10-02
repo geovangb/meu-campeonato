@@ -53,4 +53,14 @@ class Time extends Model
             ])
             ->withTimestamps();
     }
+
+    public function jogosCasa()
+    {
+        return $this->hasMany(Jogo::class, 'time_casa_id');
+    }
+
+    public function jogosFora()
+    {
+        return $this->hasMany(Jogo::class, 'time_fora_id');
+    }
 }

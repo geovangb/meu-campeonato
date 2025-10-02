@@ -85,35 +85,81 @@ class CampeonatoController
     {
         $jogos = $campeonato->jogos()->with(['timeCasa', 'timeFora'])->get();
 
-        $times = $campeonato->times()->get()->map(function($time) use ($campeonato) {
+        $times = $campeonato->times()->get()->map(function($time) use ($campeonato, $jogos) {
             $pontos = 0;
             $golsPro = 0;
             $golsContra = 0;
             $cartoes = 0;
 
-            foreach($time->jogos() as $jogo) {
+            $jogosTime = $jogos->filter(function($jogo) use ($time) {
+                return $jogo->time_casa_id == $time->id || $jogo->time_fora_id == $time->id;
+            });
+
+            foreach($jogosTime as $jogo) {
                 if($jogo->time_casa_id == $time->id) {
                     $golsPro += $jogo->gols_casa ?? 0;
                     $golsContra += $jogo->gols_fora ?? 0;
+                    $pontos += ($jogo->gols_casa ?? 0) - ($jogo->gols_fora ?? 0);
                 } else {
                     $golsPro += $jogo->gols_fora ?? 0;
                     $golsContra += $jogo->gols_casa ?? 0;
+                    $pontos += ($jogo->gols_fora ?? 0) - ($jogo->gols_casa ?? 0);
                 }
-                // exemplo de cartão
-                $cartoes += $jogo->sumula['cartoes'][$time->id] ?? 0;
 
-                $pontos += ($jogo->gols_casa ?? 0) - ($jogo->gols_fora ?? 0);
+                $cartoes += $jogo->sumula['cartoes'][$time->id] ?? 0;
             }
 
             $time->pontos = $pontos;
             $time->gols_pro = $golsPro;
             $time->gols_contra = $golsContra;
             $time->cartoes = $cartoes;
+
             return $time;
         })->sortByDesc('pontos');
 
         $classificados = $times->take(4)->pluck('id')->toArray();
 
         return view('campeonatos.jogos', compact('campeonato', 'jogos', 'times', 'classificados'));
+    }
+
+    public function jogosVisaoGeral(Campeonato $campeonato)
+    {
+        $jogos = $campeonato->jogos()->with(['timeCasa', 'timeFora'])->get();
+
+        $classificacao = $campeonato->times()->get()->map(function($time) use ($campeonato) {
+            $jogosTime = $campeonato->jogos()
+                ->where('time_casa_id', $time->id)
+                ->orWhere('time_fora_id', $time->id)
+                ->get();
+
+            $golsPro = 0;
+            $golsContra = 0;
+            $pontos = 0;
+            $cartoes = 0;
+
+            foreach($jogosTime as $j) {
+                if($j->time_casa_id == $time->id) {
+                    $golsPro += $j->gols_casa ?? 0;
+                    $golsContra += $j->gols_fora ?? 0;
+                } else {
+                    $golsPro += $j->gols_fora ?? 0;
+                    $golsContra += $j->gols_casa ?? 0;
+                }
+            }
+
+            $pontos = $golsPro - $golsContra;
+
+            return [
+                'time' => $time,
+                'pontos' => $pontos,
+                'gols_pro' => $golsPro,
+                'gols_contra' => $golsContra,
+                'cartoes' => $cartoes,
+            ];
+        })->sortByDesc('pontos')->values();
+
+        $top4 = $classificacao->take(4)->pluck('time.id')->toArray();
+
+        return view('campeonatos.jogos_geral', compact('campeonato', 'jogos', 'classificacao', 'top4'));
     }
 }

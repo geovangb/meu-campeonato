@@ -115,4 +115,38 @@ class CampeonatoStarterService
             throw $e;
         }
     }
+
+    public function status(Campeonato $campeonato): array
+    {
+        $times = $campeonato->times()->get(['times.id', 'times.nome']);
+        $regras = $campeonato->only(['penaltis', 'prorrogacao', 'criterio_desempate']);
+
+        $jogos = $campeonato->jogos()
+            ->with(['timeCasa:id,nome', 'timeFora:id,nome'])
+            ->orderBy('id')
+            ->get();
+
+        $confrontos = $this->montarConfrontos($jogos);
+
+        return compact('times', 'regras', 'confrontos');
+    }
+
+    protected function montarConfrontos($jogos): array
+    {
+        $confrontos = [];
+        foreach ($jogos->groupBy(fn($j) => $j->time_casa_id . '-' . $j->time_fora_id) as $grupo) {
+            $ida = $grupo->firstWhere('partida', 1);
+            $volta = $grupo->firstWhere('partida', 2);
+
+            $confrontos[] = [
+                'time1'      => $ida?->timeCasa?->nome ?? '',
+                'time2'      => $ida?->timeFora?->nome ?? '',
+                'jogo_ida'   => $ida?->id,
+                'jogo_volta' => $volta?->id,
+                'data_ida'   => $ida?->data_partida,
+                'data_volta' => $volta?->data_partida,
+            ];
+        }
+        return $confrontos;
+    }
 }
