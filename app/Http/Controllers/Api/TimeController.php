@@ -11,21 +11,41 @@
  */
 
 namespace App\Http\Controllers\Api;
-use App\Http\Controllers\Controller;
-use App\Models\Time;
+
 use Illuminate\Http\Request;
+use App\Services\TimeService;
+use App\DTOs\CreateTimeDTO;
+use Throwable;
 
 class TimeController extends Controller
 {
+    protected TimeService $service;
+
+    public function __construct(TimeService $service)
+    {
+        $this->service = $service;
+    }
+
+    /**
+     * Criar um novo time
+     */
     public function store(Request $request)
     {
-        $time = Time::create([
-            'nome' => $request->nome
-        ]);
+        try {
+            $dto = CreateTimeDTO::fromRequest($request);
 
-        return response()->json([
-            'success' => true,
-            'time' => $time
-        ]);
+            $time = $this->service->create($dto);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Time criado com sucesso.',
+                'time' => $time
+            ]);
+        } catch (Throwable $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Erro ao criar time: ' . $e->getMessage()
+            ], 400);
+        }
     }
 }

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\DTOs\JogoDTO;
 use App\Models\Jogo;
 use App\Models\Time;
 use App\Models\Campeonato;
@@ -12,8 +13,26 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use App\Services\JogoService;
 
+/**
+ * GB Developer
+ *
+ * @category GB_Developer
+ * @package  GB
+ *
+ * @copyright Copyright (c) 2025 GB Developer.
+ *
+ * @author Geovan Brambilla <geovangb@gmail.com>
+ */
 class JogoController extends Controller
 {
+
+    protected JogoService $service;
+
+    public function __construct(JogoService $service)
+    {
+        $this->service = $service;
+    }
+
     /**
      * Display a listing of the resource.
      *
@@ -45,31 +64,13 @@ class JogoController extends Controller
      * @param Request $request
      * @return RedirectResponse
      */
-    public function store(Request $request)
+    public function store(Request $request, JogoService $service)
     {
-        $data = $request->validate([
-            'campeonato_id'   => 'required|integer',
-            'time_casa_id'    => 'required|integer',
-            'time_fora_id'    => 'required|integer|different:time_casa_id',
-            'partida'         => 'required|integer',
-            'data_partida'    => 'nullable|date',
-            'juiz'            => 'nullable|string',
-            'auxiliar_1'      => 'nullable|string',
-            'auxiliar_2'      => 'nullable|string',
-            'gols_casa'       => 'nullable|integer',
-            'gols_fora'       => 'nullable|integer',
-            'escalacao_time_1'=> 'nullable|array',
-            'reservas_time_1' => 'nullable|array',
-            'substituicao_time_1' => 'nullable|array',
-            'escalacao_time_2'=> 'nullable|array',
-            'reservas_time_2' => 'nullable|array',
-            'substituicao_time_2' => 'nullable|array',
-            'sumula'          => 'nullable|array',
-        ]);
+        $dto = JogoDTO::fromRequest($request);
+        $service->create($dto);
 
-        Jogo::create($data);
-
-        return redirect()->route('jogos.index')->with('success', 'Jogo criado com sucesso!');
+        return redirect()->route('jogos.index')
+            ->with('success', 'Jogo criado com sucesso!');
     }
 
     /**
@@ -114,52 +115,33 @@ class JogoController extends Controller
      */
     public function update(Request $request, $campeonatoId, Jogo $jogo, JogoService $service)
     {
-        $data = $request->validate([
-            'campeonato_id'   => 'required|integer',
-            'time_casa_id'    => 'required|integer',
-            'time_fora_id'    => 'required|integer|different:time_casa_id',
-            'partida'         => 'required|integer',
-            'data_partida'    => 'nullable|date',
-            'juiz'            => 'nullable|string',
-            'auxiliar_1'      => 'nullable|string',
-            'auxiliar_2'      => 'nullable|string',
-            'gols_casa'       => 'nullable|integer',
-            'gols_fora'       => 'nullable|integer',
-            'escalacao_time_1'=> 'nullable|array',
-            'reservas_time_1' => 'nullable|array',
-            'substituicao_time_1' => 'nullable|array',
-            'escalacao_time_2'=> 'nullable|array',
-            'reservas_time_2' => 'nullable|array',
-            'substituicao_time_2' => 'nullable|array',
-            'sumula'          => 'nullable|array',
-        ]);
+        $dto = JogoDTO::fromRequest($request);
+        $service->update($jogo, $dto);
 
-        $jogo->update($data);
-
-        $jogo->timeCasa->increment('pontos', ($jogo->gols_casa ?? 0) - ($jogo->gols_fora ?? 0));
-        $jogo->timeFora->increment('pontos', ($jogo->gols_fora ?? 0) - ($jogo->gols_casa ?? 0));
-
-        $campeonato = $jogo->campeonato;
-        $faseAnterior = 'quartas';
-        $jogosFaseAnterior = $campeonato->jogos()->where('fase', $faseAnterior)->get();
-
-        if($jogosFaseAnterior->every(fn($j) => $j->gols_casa !== null && $j->gols_fora !== null)) {
-            $service->gerarSemifinal($campeonato);
+        if ($request->wantsJson() || $request->header('Accept') === 'application/json') {
+            return response()->json([
+                'success' => true,
+                'jogo' => $jogo->fresh()
+            ]);
         }
 
         return redirect()->route('jogos.edit', [$campeonatoId, $jogo->id])
             ->with('success', 'Jogo atualizado com sucesso!');
     }
 
+
     /**
      * Remove the specified resource from storage.
      *
      * @param Jogo $jogo
+     * @param JogoService $service
      * @return RedirectResponse
      */
-    public function destroy(Jogo $jogo)
+    public function destroy(Jogo $jogo, JogoService $service)
     {
-        $jogo->delete();
-        return redirect()->route('jogos.index')->with('success', 'Jogo excluído com sucesso!');
+        $service->delete($jogo);
+
+        return redirect()->route('jogos.index')
+            ->with('success', 'Jogo excluído com sucesso!');
     }
 }

@@ -14,15 +14,13 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function popularTimes() {
-        // Casa
         TIME_CASA.forEach(j => {
             const el = criarJogadorEl(j);
             if(ESCALACAO_CASA.includes(j.id)) casaEscalacao.appendChild(el);
             else if(RESERVAS_CASA.includes(j.id)) casaReservas.appendChild(el);
-            else casaReservas.appendChild(el); // default
+            else casaReservas.appendChild(el);
         });
 
-        // Fora
         TIME_FORA.forEach(j => {
             const el = criarJogadorEl(j);
             if(ESCALACAO_FORA.includes(j.id)) foraEscalacao.appendChild(el);
@@ -33,6 +31,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     function setupDragDrop() {
         const containers = document.querySelectorAll('.escala, .reservas');
+
         document.addEventListener('dragstart', function(e){
             if(e.target.classList.contains('jogador')){
                 e.dataTransfer.setData('text/plain', e.target.dataset.jogadorId);
@@ -74,41 +73,41 @@ document.addEventListener('DOMContentLoaded', function() {
         const CAMPEONATO_ID = document.getElementById('jogo-data').dataset.campeonatoId;
         const JOGO_ID = document.getElementById('jogo-data').dataset.jogoId;
 
-        const casaTitulares = Array.from(casaEscalacao.children).map(el => el.dataset.jogadorId);
-        const casaReserv = Array.from(casaReservas.children).map(el => el.dataset.jogadorId);
-        const foraTitulares = Array.from(foraEscalacao.children).map(el => el.dataset.jogadorId);
-        const foraReserv = Array.from(foraReservas.children).map(el => el.dataset.jogadorId);
-
         const payload = {
+            campeonato_id: parseInt(CAMPEONATO_ID),
+            time_casa_id: parseInt(document.getElementById('time-casa-id').value),
+            time_fora_id: parseInt(document.getElementById('time-fora-id').value),
+            partida: parseInt(document.getElementById('partida').value),
             data_partida: document.getElementById('data-jogo').value,
             gols_casa: parseInt(document.getElementById('gols-casa').value) || 0,
             gols_fora: parseInt(document.getElementById('gols-fora').value) || 0,
             juiz: document.getElementById('juiz').value,
             auxiliar_1: document.getElementById('auxiliar-1').value,
             auxiliar_2: document.getElementById('auxiliar-2').value,
-            escalacao_time_1: casaTitulares,
-            reservas_time_1: casaReserv,
-            escalacao_time_2: foraTitulares,
-            reservas_time_2: foraReserv
+            escalacao_time_1: Array.from(casaEscalacao.children).map(el => el.dataset.jogadorId),
+            reservas_time_1: Array.from(casaReservas.children).map(el => el.dataset.jogadorId),
+            escalacao_time_2: Array.from(foraEscalacao.children).map(el => el.dataset.jogadorId),
+            reservas_time_2: Array.from(foraReservas.children).map(el => el.dataset.jogadorId)
         };
 
-        fetch('/campeonatos/' + CAMPEONATO_ID + '/jogos/' + JOGO_ID + '/save', {
+        fetch(`/campeonatos/${CAMPEONATO_ID}/jogos/${JOGO_ID}/save`, {
             method: 'PUT',
             headers: {
                 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
-                'Content-Type': 'application/json'
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
             },
             body: JSON.stringify(payload)
         })
-
-            .then(r => r.json())
-            .then(res => {
-                if(res.success) {
+            .then(res => res.json())
+            .then(data => {
+                if(data.success){
                     alert('Jogo salvo com sucesso!');
                     location.reload();
                 } else {
-                    alert('Erro ao salvar!');
+                    console.log('Erro ao salvar: ' + (data.message || ''));
                 }
-            });
+            })
+            .catch(err => alert('Erro de rede: ' + err));
     });
 });

@@ -15,10 +15,15 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+
 class CampeonatoTime extends Model
 {
     use HasFactory;
 
+    /**
+     * @var string[]
+     */
     protected $fillable = [
         'campeonato_id',
         'time_id',
@@ -32,11 +37,17 @@ class CampeonatoTime extends Model
         'jogos',
     ];
 
+    /**
+     * @return BelongsTo
+     */
     public function campeonato()
     {
         return $this->belongsTo(Campeonato::class);
     }
 
+    /**
+     * @return BelongsTo
+     */
     public function time()
     {
         return $this->belongsTo(Time::class);

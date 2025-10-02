@@ -13,66 +13,79 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use App\Models\Jogo;
+use App\Services\JogoService;
+use App\DTOs\UpdateJogoDateDTO;
+use App\DTOs\BulkUpdateJogoDatesDTO;
 
+/**
+ * GB Developer
+ *
+ * @category GB_Developer
+ * @package  GB
+ *
+ * @copyright Copyright (c) 2025 GB Developer.
+ *
+ * @author Geovan Brambilla <geovangb@gmail.com>
+ */
 class JogoApiController extends Controller
 {
+    /**
+     * @var JogoService
+     */
+    protected JogoService $service;
+
+    /**
+     * @param JogoService $service
+     */
+    public function __construct(JogoService $service)
+    {
+        $this->service = $service;
+    }
+
+    /**
+     * @param Request $request
+     * @param Jogo $jogo
+     * @return JsonResponse
+     */
     public function updateDate(Request $request, Jogo $jogo)
     {
-        $data = $request->validate([
-            'data_partida' => 'required|date',
-        ]);
-
-        $jogo->update(['data_partida' => $data['data_partida']]);
+        $dto = new UpdateJogoDateDTO($request->validate(['data_partida' => 'required|date']));
+        $jogo = $this->service->updateDate($jogo, $dto);
 
         return response()->json(['success' => true, 'jogo' => $jogo]);
     }
 
-    public function bulkUpdateDates(Request $request)
+    /**
+     * @param Request $request
+     * @param JogoService $service
+     * @return JsonResponse
+     * @throws \Throwable
+     */
+    public function bulkUpdateDates(Request $request, JogoService $service)
     {
-        $items = $request->input('items', []);
-        $updated = [];
-        foreach ($items as $it) {
-            $j = Jogo::find($it['id']);
-            if ($j) {
-                $j->update(['data_partida' => $it['data_partida']]);
-                $updated[] = $j;
-            }
-        }
-        return response()->json(['success' => true, 'updated' => $updated]);
-    }
+        $dto = BulkUpdateJogoDatesDTO::fromRequest($request);
 
-    public function update(Request $request, Jogo $jogo, JogoService $service)
-    {
-        $jogo->update($request->only('gols_casa','gols_fora'));
-
-        $jogo->timeCasa->increment('pontos', ($jogo->gols_casa ?? 0) - ($jogo->gols_fora ?? 0));
-        $jogo->timeFora->increment('pontos', ($jogo->gols_fora ?? 0) - ($jogo->gols_casa ?? 0));
-
-        $campeonato = $jogo->campeonato;
-        $faseAnterior = 'quartas';
-        $jogosFaseAnterior = $campeonato->jogos()->where('fase', $faseAnterior)->get();
-
-        $proximaFase = null;
-
-        if($jogosFaseAnterior->every(fn($j) => $j->gols_casa !== null && $j->gols_fora !== null)) {
-            $service->gerarSemifinal($campeonato);
-            $proximaFase = 'semifinal';
-        }
-
-        $confrontos = $proximaFase ? $campeonato->jogos()->where('fase',$proximaFase)->get()->map(function($j) {
-            return [
-                'time1' => $j->timeCasa->nome,
-                'time2' => $j->timeFora->nome,
-                'jogo_ida' => $j->id,
-                'data_ida' => $j->data_partida->toDateTimeString()
-            ];
-        }) : [];
+        $service->bulkUpdateDates($dto);
 
         return response()->json([
             'success' => true,
-            'confrontos_proxima_fase' => $confrontos
+            'message' => 'Datas dos jogos atualizadas com sucesso!',
         ]);
+    }
+
+    /**
+     * @param Request $request
+     * @param Jogo $jogo
+     * @return JsonResponse
+     */
+    public function update(Request $request, Jogo $jogo)
+    {
+        $dados = $request->only(['gols_casa', 'gols_fora']);
+        $confrontos = $this->service->updateScores($jogo, $dados);
+
+        return response()->json(['success' => true, 'confrontos_proxima_fase' => $confrontos]);
     }
 }

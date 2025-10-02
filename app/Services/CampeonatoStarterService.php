@@ -12,37 +12,55 @@
 
 namespace App\Services;
 
+use App\DTOs\SalvarTimesDTO;
+use App\DTOs\SalvarRegrasDTO;
 use App\Models\Campeonato;
 use App\Models\CampeonatoTime;
 use App\Models\Jogo;
 use App\Models\Time;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
+
 class CampeonatoStarterService
 {
-    public function salvarTimes(Campeonato $campeonato, array $timesIds)
+    /**
+     * @param Campeonato $campeonato
+     * @param SalvarTimesDTO $dto
+     * @return bool
+     */
+    public function salvarTimes(Campeonato $campeonato, SalvarTimesDTO $dto): bool
     {
-        foreach ($timesIds as $timeId) {
+        foreach ($dto->timesIds as $timeId) {
             CampeonatoTime::firstOrCreate([
                 'campeonato_id' => $campeonato->id,
                 'time_id'       => $timeId,
             ]);
         }
-
         return true;
     }
 
-    public function salvarRegras(Campeonato $campeonato, array $dados)
+    /**
+     * @param Campeonato $campeonato
+     * @param SalvarRegrasDTO $dto
+     * @return Campeonato
+     */
+    public function salvarRegras(Campeonato $campeonato, SalvarRegrasDTO $dto): Campeonato
     {
         $campeonato->update([
-            'penaltis'           => $dados['penaltis'],
-            'prorrogacao'        => $dados['prorrogacao'],
-            'criterio_desempate' => $dados['criterio_desempate'] === 'sim' ? 1 : 0,
+            'penaltis'           => $dto->penaltis,
+            'prorrogacao'        => $dto->prorrogacao,
+            'criterio_desempate' => $dto->criterioDesempate ? 1 : 0,
         ]);
 
         return $campeonato;
     }
 
+    /**
+     * @param Campeonato $campeonato
+     * @return array
+     * @throws \Random\RandomException
+     * @throws \Throwable
+     */
     public function sortear(Campeonato $campeonato): array
     {
         $times = $campeonato->times()->pluck('times.id')->toArray();
@@ -61,7 +79,6 @@ class CampeonatoStarterService
 
         $hoje = Carbon::today();
         $proximoDomingo = $hoje->isSunday() ? $hoje : $hoje->next(Carbon::SUNDAY);
-
         $intervalDays = 3;
         $confrontos   = [];
 
@@ -95,19 +112,18 @@ class CampeonatoStarterService
                 ]);
 
                 $confrontos[] = [
-                    'time1'     => Time::find($time1)->nome,
-                    'time2'     => Time::find($time2)->nome,
-                    'jogo_ida'  => $jogoIda->id,
-                    'jogo_volta'=> $jogoVolta->id,
-                    'data_ida'  => $dataIda->toDateTimeString(),
-                    'data_volta'=> $dataVolta->toDateTimeString(),
+                    'time1'      => Time::find($time1)->nome,
+                    'time2'      => Time::find($time2)->nome,
+                    'jogo_ida'   => $jogoIda->id,
+                    'jogo_volta' => $jogoVolta->id,
+                    'data_ida'   => $dataIda->toDateTimeString(),
+                    'data_volta' => $dataVolta->toDateTimeString(),
                 ];
 
                 $pairIndex++;
             }
 
             DB::commit();
-
             return $confrontos;
 
         } catch (\Throwable $e) {
@@ -116,6 +132,10 @@ class CampeonatoStarterService
         }
     }
 
+    /**
+     * @param Campeonato $campeonato
+     * @return array
+     */
     public function status(Campeonato $campeonato): array
     {
         $times = $campeonato->times()->get(['times.id', 'times.nome']);
@@ -131,6 +151,10 @@ class CampeonatoStarterService
         return compact('times', 'regras', 'confrontos');
     }
 
+    /**
+     * @param $jogos
+     * @return array
+     */
     protected function montarConfrontos($jogos): array
     {
         $confrontos = [];

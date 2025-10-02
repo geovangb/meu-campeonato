@@ -14,19 +14,21 @@ namespace App\DTOs;
 
 use Illuminate\Http\Request;
 
-class SalvarTimesDTO
+class CreateTimeDTO
 {
-    public array $times;
+    public string $nome;
 
-    public function __construct(array $times)
+    public function __construct(array $data)
     {
-        $this->times = $times;
+        $this->nome = $data['nome'];
     }
 
     public static function fromRequest(Request $request): self
     {
-        return new self(
-            times: $request->input('times', [])
-        );
+        $validated = $request->validate([
+            'nome' => 'required|string|max:255'
+        ]);
+
+        return new self($validated);
     }
 }

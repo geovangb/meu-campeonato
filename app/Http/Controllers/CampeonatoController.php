@@ -13,153 +13,135 @@
 namespace App\Http\Controllers;
 
 use App\Models\Campeonato;
+use App\Services\CampeonatoService;
+use App\Services\JogoService;
+use App\DTOs\CampeonatoDTO;
+use Illuminate\Contracts\Foundation\Application;
+use Illuminate\Contracts\View\Factory;
+use Illuminate\Contracts\View\View;
 use Illuminate\Http\Request;
-class CampeonatoController
+
+class CampeonatoController extends Controller
 {
-    public function index()
+    /**
+     * @var CampeonatoService
+     */
+    protected CampeonatoService $service;
+    /**
+     * @var JogoService
+     */
+    protected JogoService $jogoService;
+
+    /**
+     * @param CampeonatoService $service
+     * @param JogoService $jogoService
+     */
+    public function __construct(CampeonatoService $service, JogoService $jogoService)
+    {
+        $this->service = $service;
+        $this->jogoService = $jogoService;
+    }
+
+    /**
+     * @return Application|Factory|View
+     */
+    public function index(): Application|Factory|View
     {
         $campeonatos = Campeonato::latest()->paginate(10);
-
         return view('campeonatos.index', compact('campeonatos'));
     }
 
-    public function create()
+    /**
+     * @return Application|Factory|View
+     */
+    public function create(): Application|Factory|View
     {
         return view('campeonatos.create');
     }
 
+    /**
+     * @param Request $request
+     * @return \Illuminate\Http\RedirectResponse
+     */
     public function store(Request $request)
     {
-        $validated = $request->validate([
-            'nome' => 'required|string|max:200',
-            'status' => 'boolean',
-            'data' => 'nullable|date',
-            'qtd_times' => 'nullable|integer|min:0',
-            'tipo_campeonato' => 'nullable|string|max:100',
-        ]);
+        $dto = CampeonatoDTO::fromRequest($request);
+        $this->service->create($dto);
 
-        Campeonato::create($validated);
-
-        return redirect()->route('campeonatos.index')->with('success', 'Campeonato criado com sucesso!');
+        return redirect()->route('campeonatos.index')
+            ->with('success', 'Campeonato criado com sucesso!');
     }
 
-    public function edit(Campeonato $campeonato)
+    /**
+     * @param Campeonato $campeonato
+     * @return Application|Factory|View
+     */
+    public function edit(Campeonato $campeonato): Application|Factory|View
     {
         return view('campeonatos.edit', compact('campeonato'));
     }
 
+    /**
+     * @param Request $request
+     * @param Campeonato $campeonato
+     * @return \Illuminate\Http\RedirectResponse
+     */
     public function update(Request $request, Campeonato $campeonato)
     {
-        $validated = $request->validate([
-            'nome' => 'required|string|max:200',
-            'status' => 'boolean',
-            'data' => 'nullable|date',
-            'qtd_times' => 'nullable|integer|min:0',
-            'tipo_campeonato' => 'nullable|string|max:100',
-        ]);
+        $dto = CampeonatoDTO::fromRequest($request);
+        $this->service->update($campeonato, $dto);
 
-        $campeonato->update($validated);
-
-        return redirect()->route('campeonatos.index')->with('success', 'Campeonato atualizado com sucesso!');
+        return redirect()->route('campeonatos.index')
+            ->with('success', 'Campeonato atualizado com sucesso!');
     }
 
+    /**
+     * @param Campeonato $campeonato
+     * @return \Illuminate\Http\RedirectResponse
+     */
     public function destroy(Campeonato $campeonato)
     {
-        $campeonato->delete();
-        return redirect()->route('campeonatos.index')->with('success', 'Campeonato excluído com sucesso!');
+        $this->service->delete($campeonato);
+
+        return redirect()->route('campeonatos.index')
+            ->with('success', 'Campeonato excluído com sucesso!');
     }
 
+    /**
+     * @param Campeonato $campeonato
+     * @return \Illuminate\Http\RedirectResponse
+     * @throws \Exception
+     */
     public function iniciar(Campeonato $campeonato)
     {
-        if ($campeonato->jogos()->count() === 0) {
-
-            app(JogoService::class)->gerarJogosQuartas($campeonato);
-        }
-
-        $primeiroJogo = $campeonato->jogos()->first();
+        $primeiroJogo = $this->service->iniciarCampeonato($campeonato, $this->jogoService);
 
         return redirect()->route('jogos.edit', [$campeonato->id, $primeiroJogo->id]);
     }
 
-    public function jogos(Campeonato $campeonato)
+    /**
+     * @param Campeonato $campeonato
+     * @return Application|Factory|View
+     */
+    public function jogos(Campeonato $campeonato): Application|Factory|View
     {
+        $classificacao = $this->service->calcularClassificacao($campeonato);
         $jogos = $campeonato->jogos()->with(['timeCasa', 'timeFora'])->get();
+        $top4 = $this->service->top4Ids($classificacao);
 
-        $times = $campeonato->times()->get()->map(function($time) use ($campeonato, $jogos) {
-            $pontos = 0;
-            $golsPro = 0;
-            $golsContra = 0;
-            $cartoes = 0;
-
-            $jogosTime = $jogos->filter(function($jogo) use ($time) {
-                return $jogo->time_casa_id == $time->id || $jogo->time_fora_id == $time->id;
-            });
-
-            foreach($jogosTime as $jogo) {
-                if($jogo->time_casa_id == $time->id) {
-                    $golsPro += $jogo->gols_casa ?? 0;
-                    $golsContra += $jogo->gols_fora ?? 0;
-                    $pontos += ($jogo->gols_casa ?? 0) - ($jogo->gols_fora ?? 0);
-                } else {
-                    $golsPro += $jogo->gols_fora ?? 0;
-                    $golsContra += $jogo->gols_casa ?? 0;
-                    $pontos += ($jogo->gols_fora ?? 0) - ($jogo->gols_casa ?? 0);
-                }
-
-                $cartoes += $jogo->sumula['cartoes'][$time->id] ?? 0;
-            }
-
-            $time->pontos = $pontos;
-            $time->gols_pro = $golsPro;
-            $time->gols_contra = $golsContra;
-            $time->cartoes = $cartoes;
-
-            return $time;
-        })->sortByDesc('pontos');
-
-        $classificados = $times->take(4)->pluck('id')->toArray();
-
-        return view('campeonatos.jogos', compact('campeonato', 'jogos', 'times', 'classificados'));
+        return view('campeonatos.jogos', compact('campeonato','jogos','classificacao','top4'));
     }
 
-    public function jogosVisaoGeral(Campeonato $campeonato)
+    /**
+     * @param Campeonato $campeonato
+     * @return Application|Factory|View
+     */
+    public function jogosVisaoGeral(Campeonato $campeonato): Application|Factory|View
     {
-        $jogos = $campeonato->jogos()->with(['timeCasa', 'timeFora'])->get();
+        $classificacao = $this->service->calcularClassificacao($campeonato);
+        $jogos = $campeonato->jogos()->with(['timeCasa','timeFora'])->get();
+        $top4 = $this->service->top4Ids($classificacao);
 
-        $classificacao = $campeonato->times()->get()->map(function($time) use ($campeonato) {
-            $jogosTime = $campeonato->jogos()
-                ->where('time_casa_id', $time->id)
-                ->orWhere('time_fora_id', $time->id)
-                ->get();
-
-            $golsPro = 0;
-            $golsContra = 0;
-            $pontos = 0;
-            $cartoes = 0;
-
-            foreach($jogosTime as $j) {
-                if($j->time_casa_id == $time->id) {
-                    $golsPro += $j->gols_casa ?? 0;
-                    $golsContra += $j->gols_fora ?? 0;
-                } else {
-                    $golsPro += $j->gols_fora ?? 0;
-                    $golsContra += $j->gols_casa ?? 0;
-                }
-            }
-
-            $pontos = $golsPro - $golsContra;
-
-            return [
-                'time' => $time,
-                'pontos' => $pontos,
-                'gols_pro' => $golsPro,
-                'gols_contra' => $golsContra,
-                'cartoes' => $cartoes,
-            ];
-        })->sortByDesc('pontos')->values();
-
-        $top4 = $classificacao->take(4)->pluck('time.id')->toArray();
-
-        return view('campeonatos.jogos_geral', compact('campeonato', 'jogos', 'classificacao', 'top4'));
+        return view('campeonatos.jogos_geral', compact('campeonato','jogos','classificacao','top4'));
     }
 }

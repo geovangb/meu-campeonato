@@ -4,132 +4,92 @@ namespace App\Http\Controllers;
 
 use App\Models\Jogador;
 use App\Models\Time;
+use App\DTOs\JogadorDTO;
+use App\Services\JogadorService;
 use Illuminate\Contracts\Foundation\Application;
 use Illuminate\Contracts\View\Factory;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Storage;
 
 class JogadorController extends Controller
 {
     /**
-     * Display a listing of the resource.
-     *
-     * @return Application|Factory|View
+     * @var JogadorService
      */
-    public function index()
+    protected JogadorService $service;
+
+    /**
+     * @param JogadorService $service
+     */
+    public function __construct(JogadorService $service)
+    {
+        $this->service = $service;
+    }
+
+    /**
+     * @return Factory|View|Application
+     */
+    public function index(): Factory|View|Application
     {
         $jogadores = Jogador::with('time')->get();
-
         return view('jogadores.index', compact('jogadores'));
     }
 
     /**
-     * Show the form for creating a new resource.
-     *
-     * @return \Illuminate\Http\Response
+     * @return Factory|View|Application
      */
-    public function create()
+    public function create(): Factory|View|Application
     {
         $times = Time::all();
-
         return view('jogadores.create', compact('times'));
     }
 
     /**
-     * Store a newly created resource in storage.
-     *
      * @param Request $request
      * @return \Illuminate\Http\RedirectResponse
      */
     public function store(Request $request)
     {
-        $data = $request->validate([
-            'time_id' => 'required|exists:times,id',
-            'nome' => 'required|string|max:255',
-            'nascimento' => 'nullable|date',
-            'altura' => 'nullable|numeric',
-            'peso' => 'nullable|numeric',
-            'posicao' => 'nullable|string|max:50',
-            'apto' => 'nullable|boolean',
-            'foto' => 'nullable|image|max:2048',
-        ]);
+        $dto = JogadorDTO::fromRequest($request);
+        $this->service->criar($dto, $request->file('foto'));
 
-        if ($request->hasFile('foto')) {
-            $data['foto'] = $request->file('foto')->store('jogadores', 'public');
-        }
-
-        Jogador::create($data);
-
-        return redirect()->route('jogadores.index')->with('success', 'Jogador criado com sucesso!');
+        return redirect()->route('jogadores.index')
+            ->with('success', 'Jogador criado com sucesso!');
     }
 
     /**
-     * Display the specified resource.
-     *
-     * @param  int  $id
-     * @return \Illuminate\Http\Response
-     */
-    public function show($id)
-    {
-        //
-    }
-
-    /**
-     * Show the form for editing the specified resource.
-     *
      * @param Jogador $jogador
-     * @return Application|Factory|View
+     * @return Factory|View|Application
      */
-    public function edit(Jogador $jogador)
+    public function edit(Jogador $jogador): Factory|View|Application
     {
         $times = Time::all();
         return view('jogadores.edit', compact('jogador', 'times'));
     }
 
     /**
-     * Update the specified resource in storage.
-     *
      * @param Request $request
      * @param Jogador $jogador
      * @return \Illuminate\Http\RedirectResponse
      */
     public function update(Request $request, Jogador $jogador)
     {
-        $data = $request->validate([
-            'time_id' => 'required|exists:times,id',
-            'nome' => 'required|string|max:255',
-            'nascimento' => 'nullable|date',
-            'altura' => 'nullable|numeric',
-            'peso' => 'nullable|numeric',
-            'posicao' => 'nullable|string|max:50',
-            'apto' => 'nullable|boolean',
-            'foto' => 'nullable|image|max:2048',
-        ]);
+        $dto = JogadorDTO::fromRequest($request);
+        $this->service->atualizar($jogador, $dto, $request->file('foto'));
 
-        if ($request->hasFile('foto')) {
-            if ($jogador->foto) {
-                Storage::disk('public')->delete($jogador->foto);
-            }
-            $data['foto'] = $request->file('foto')->store('jogadores', 'public');
-        }
-
-        $jogador->update($data);
-        return redirect()->route('jogadores.index')->with('success', 'Jogador atualizado com sucesso!');
+        return redirect()->route('jogadores.index')
+            ->with('success', 'Jogador atualizado com sucesso!');
     }
 
     /**
-     * Remove the specified resource from storage.
-     *
      * @param Jogador $jogador
      * @return \Illuminate\Http\RedirectResponse
      */
     public function destroy(Jogador $jogador)
     {
-        if ($jogador->foto) {
-            Storage::disk('public')->delete($jogador->foto);
-        }
-        $jogador->delete();
-        return redirect()->route('jogadores.index')->with('success', 'Jogador removido!');
+        $this->service->remover($jogador);
+
+        return redirect()->route('jogadores.index')
+            ->with('success', 'Jogador removido com sucesso!');
     }
 }
